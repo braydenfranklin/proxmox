@@ -1,0 +1,106 @@
+---
+# tasks file for vikunja
+- name: Update and upgrade apt packages
+  ansible.builtin.apt:
+    update_cache: yes
+    upgrade: yes
+
+- name: Install necessary packages
+  ansible.builtin.apt:
+    name: "{{ packages }}"
+  notify: Ensure MariaDB has started
+
+- name: Create Vikunja database
+  community.mysql.mysql_db:
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+    name: vikunja
+    state: present
+
+- name: Create MariaDB user for Vikunja
+  community.mysql.mysql_user:
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+    name: vikunja
+    password: "{{ database_password }}"
+    priv: 'vikunja.*:ALL'
+    state: present
+
+- name: Download Vikunja api package
+  ansible.builtin.get_url:
+    url: https://dl.vikunja.io/api/0.21.0/vikunja-0.21.0-amd64.deb
+    dest: /tmp/vikunja-0.21.0-amd64.deb
+    mode: '0644'
+
+- name: Install Vikunja api package
+  ansible.builtin.apt:
+    deb: /tmp/vikunja-0.21.0-amd64.deb
+
+- name: Download Vikunja frontend zip archive
+  ansible.builtin.get_url:
+    url: https://dl.vikunja.io/frontend/vikunja-frontend-0.21.0.zip
+    dest: /tmp/vikunja-frontend-0.21.0.zip
+    mode: '0644'
+
+- name: Create Vikunja directory
+  ansible.builtin.file:
+    path: /var/www/vikunja
+    state: directory
+    mode: '0755'
+
+- name: Extract Vikunja frontend zip archive
+  ansible.builtin.unarchive:
+    src:  /tmp/vikunja-frontend-0.21.0.zip
+    dest: /var/www/vikunja
+    remote_src: yes
+
+- name: Configure database in config.yml
+  ansible.builtin.blockinfile:
+    path: /etc/vikunja/config.yml
+    marker: "# {mark} ANSIBLE MANAGED BLOCK"
+    insertafter: "database:"
+    block: |
+      # Database type to use. Supported types are mysql, postgres and sqlite.
+      type: "mysql"
+      # Database user which is used to connect to the database.
+      user: "vikunja"
+      # Database password
+      password: "{{ database_password }}"
+      # Database host
+      host: "localhost:3306"
+      # Database to use
+      backup: yes
+
+- name: Configure language and timezone in config.yml
+  ansible.builtin.lineinfile:
+    path: /etc/vikunja/config.yml
+    regexp: "^  {{ item.config_option }}:"
+    line: "  {{ item.config_option }}: {{ item.config_value }}"
+    state: present
+  loop: "{{ vikunja_config }}"
+
+- name: Set permissions of Vikunja directory
+  ansible.builtin.file:
+    path: /var/www/vikunja
+    owner: www-data
+    group: www-data
+    recurse: yes
+
+- name: Enable Apache rewrite module 
+  community.general.apache2_module:
+    name: rewrite
+    state: present
+  notify: Restart Apache
+
+- name: Upload Vikunja Apache configuration file
+  copy:
+    src: vikunja.conf
+    dest: /etc/apache2/conf-enabled/
+  notify:
+  - Restart Apache
+  - Start Vikunja
+
+- name: Remove Apache default site
+  ansible.builtin.file:
+    path: /etc/apache2/sites-enabled/000-default.conf
+    state: absent
+  notify: Restart Apache
+
