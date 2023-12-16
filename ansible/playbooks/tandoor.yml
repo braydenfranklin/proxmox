@@ -1,0 +1,7 @@
+---
+- name: Install Tandoor Recipe Manager on Debian 12 in Proxmox LXC 
+  hosts: tandoor
+  become: yes
+  vars_files: ../roles/tandoor/vars/database_password.yml
+  roles:
+    - tandoor
