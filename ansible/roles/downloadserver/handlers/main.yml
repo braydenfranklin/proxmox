@@ -1,0 +1,41 @@
+---
+# handlers file for downloadserver
+- name: Reload systemd daemon
+  ansible.builtin.systemd:
+    daemon_reload: yes
+
+- name: Start or restart Prowlarr
+  ansible.builtin.systemd:
+    name: prowlarr
+    state: restarted
+    enabled: yes
+
+- name: Start or restart Radarr
+  ansible.builtin.systemd:
+    name: radarr
+    state: restarted
+    enabled: yes
+
+- name: Start or restart Readarr
+  ansible.builtin.systemd:
+    name: readarr
+    state: restarted
+    enabled: yes
+
+- name: Start or restart Jellyseerr
+  ansible.builtin.systemd:
+    name: jellyseerr
+    state: restarted
+    enabled: yes
+
+- name: Start or restart qBittorrent-nox
+  ansible.builtin.systemd:
+    name: qbittorrent-nox@dluser
+    state: restarted
+    enabled: yes
+
+- name: Start or restart sabnzbdplus
+  ansible.builtin.systemd:
+    name: sabnzbdplus
+    state: restarted
+    enabled: yes
