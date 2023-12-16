@@ -1,0 +1,6 @@
+---
+- name: Install Linkstack on Debian 12 in Proxmox LXC 
+  hosts: linkstack
+  become: yes
+  roles:
+    - linkstack
