@@ -1,0 +1,17 @@
+---
+# vars file for linkstack
+packages:
+  - vim
+  - unzip
+  - mariadb-server
+  - python3-pymysql
+  - apache2
+  - libapache2-mod-php
+  - libapache2-mod-auth-openidc
+  - php
+  - php-bcmath
+  - php-curl
+  - php-dom
+  - php-mbstring
+  - php-sqlite3
+  - php-fileinfo
