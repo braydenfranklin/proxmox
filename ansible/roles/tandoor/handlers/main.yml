@@ -1,0 +1,13 @@
+---
+# handlers file for tandoor
+- name: Enable and start Gunicorn
+  ansible.builtin.systemd:
+    name: gunicorn_recipes
+    enabled: yes
+    state: started
+
+- name: Restart NGINX
+  ansible.builtin.systemd:
+    name: nginx
+    enabled: yes
+    state: restarted
