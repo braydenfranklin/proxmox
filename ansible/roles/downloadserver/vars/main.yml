@@ -1,0 +1,84 @@
+---
+# vars file for downloadserver
+prerequisite_packages:
+  - vim
+  - git
+  - curl 
+  - sqlite3
+  - dirmngr 
+  - ca-certificates
+  - gnupg
+
+application_groups:
+  - { name: 'media', gid: 1000 }
+  - { name: 'prowlarr', gid: 1001 }
+  - { name: 'radarr', gid: 1002 }
+  - { name: 'sonarr', gid: 1003 }
+  - { name: 'readarr', gid: 1004 }
+  - { name: 'jellyseerr', gid: 1005 }
+  - { name: 'dluser', gid: 1006 }
+
+application_users:
+  - { name: 'prowlarr', uid: 1001, groups: 'prowlarr,media' }
+  - { name: 'radarr', uid: 1002, groups: 'radarr,media' }
+  - { name: 'sonarr', uid: 1003, groups: 'sonarr,media' }
+  - { name: 'readarr', uid: 1004, groups: 'readarr,media' }
+  - { name: 'jellyseerr', uid: 1005, groups: 'jellyseerr,media' }
+  - { name: 'dluser', uid: 1006, groups: 'dluser,media' }
+
+extraction_paths:
+  - /opt/Prowlarr
+  - /opt/Radarr
+  - /opt/Readarr
+  - /opt/jellyseerr
+
+download_details:
+  - { url: 'http://prowlarr.servarr.com/v1/update/master/updatefile?os=linux&runtime=netcore&arch=x64', dest: '/tmp/prowlarr.tar.gz', index: 0 }
+  - { url: 'http://radarr.servarr.com/v1/update/master/updatefile?os=linux&runtime=netcore&arch=x64', dest: '/tmp/radarr.tar.gz', index: 1 }
+  - { url: 'http://readarr.servarr.com/v1/update/develop/updatefile?os=linux&runtime=netcore&arch=x64', dest: '/tmp/readarr.tar.gz', index: 2 }
+
+extraction_details:
+  - { src: '/tmp/prowlarr.tar.gz', dest: '/opt/', index: 0 }
+  - { src: '/tmp/radarr.tar.gz', dest: '/opt/', index: 1 }
+  - { src: '/tmp/readarr.tar.gz', dest: '/opt/', index: 2 }
+
+application_install:
+  - { path: '/opt/Prowlarr', owner: 'prowlarr', group: 'prowlarr', index: 0 }
+  - { path: '/opt/Radarr', owner: 'radarr', group: 'radarr', index: 1 }
+  - { path: '/opt/Readarr', owner: 'readarr', group: 'readarr', index: 2 }
+  - { path: '/opt/jellyseerr', owner: 'jellyseerr', group: 'jellyseerr' }
+
+application_configuration:
+  - { path: '/var/lib/prowlarr', owner: 'prowlarr', group: 'prowlarr' }
+  - { path: '/var/lib/radarr', owner: 'radarr', group: 'radarr' }
+  - { path: '/var/lib/readarr', owner: 'readarr', group: 'readarr' }
+  - { path: '/etc/jellyseerr', owner: 'jellyseerr', group: 'jellyseerr' }
+
+apt_keys:
+  - { id: '3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF', keyring: '/usr/share/keyrings/mono-official-archive-keyring.gpg' }
+  - { id: '2009837CBFFD68F45BC180471F4F90DE2A9B4BF8', keyring: '/usr/share/keyrings/sonarr.gpg' }
+
+apt_repositorys:
+  - { repo: 'deb [arch=amd64 signed-by=/usr/share/keyrings/mono-official-archive-keyring.gpg] https://download.mono-project.com/repo/debian stable-buster main', filename: 'mono-official-stable' }
+  - { repo: 'deb [arch=amd64 signed-by=/usr/share/keyrings/sonarr.gpg] https://apt.sonarr.tv/debian buster main', filename: 'sonarr' }
+  - { repo: 'deb https://deb.nodesource.com/node_18.x {{ ansible_distribution_release }} main', filename: 'nodejsv18' }
+
+application_packages:
+  - sonarr
+  - mono-devel
+  - mediainfo
+  - nodejs
+  - qbittorrent-nox
+  - sabnzbdplus
+
+sabnzbdplus_config:
+  - { config_option: 'HOST', config_value: '0.0.0.0' }
+  - { config_option: 'PORT', config_value: '8081' }
+
+files:
+  - { src: 'prowlarr.service', dest: '/etc/systemd/system/prowlarr.service' }
+  - { src: 'radarr.service', dest: '/etc/systemd/system/radarr.service' }
+  - { src: 'readarr.service', dest: '/etc/systemd/system/readarr.service' }
+  - { src: 'jellyseerr.service', dest: '/etc/systemd/system/jellyseerr.service' }
+  - { src: 'qbittorrent-nox@.service', dest: '/usr/lib/systemd/system/qbittorrent-nox@.service' }
+  - { src: 'jellyseerr.conf', dest: '/etc/jellyseerr/jellyseerr.conf' }
