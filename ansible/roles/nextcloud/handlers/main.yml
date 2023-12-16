@@ -1,0 +1,12 @@
+---
+# handlers file for nextcloud
+- name: Ensure MariaDB has started
+  ansible.builtin.systemd:
+    name: mariadb
+    state: started
+    enabled: yes
+
+- name: Restart Apache
+  ansible.builtin.systemd:
+    name: apache2
+    state: restarted
