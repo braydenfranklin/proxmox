@@ -1,0 +1,25 @@
+---
+# vars file for bookstack
+packages:
+  - vim
+  - git
+  - apache2
+  - libapache2-mod-php
+  - php
+  - php-cli
+  - php-gd
+  - php-mysql
+  - php-mbstring
+  - php-xml
+  - php-zip
+  - php-curl
+  - mariadb-server 
+  - python3-pymysql
+  - composer
+
+env_config:
+- { config_option: 'APP_URL', config_value: 'https://docs.twelvefour.net' }
+- { config_option: 'DB_HOST', config_value: 'localhost' }
+- { config_option: 'DB_DATABASE', config_value: 'bookstack' }
+- { config_option: 'DB_USERNAME', config_value: 'bookstack' }
+- { config_option: 'DB_PASSWORD', config_value: '{{ database_password }}' }
