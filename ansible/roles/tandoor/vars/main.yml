@@ -1,0 +1,25 @@
+---
+# vars file for tandoor
+packages:
+  - vim
+  - git
+  - nginx
+  - python3
+  - python3-dev
+  - python3-pip
+  - python3-venv
+  - python3-psycopg2
+  - postgresql
+  - libpq-dev
+  - libsasl2-dev
+  - libldap2-dev
+  - libssl-dev
+
+env_config:
+  - { config_option: 'ALLOWED_HOSTS', config_value: '*,recipes.twelvefour.net' }
+  - { config_option: 'SECRET_KEY', config_value: '{{ secret_key }}' }
+  - { config_option: 'TZ', config_value: 'Australia/Melbourne' }
+  - { config_option: 'POSTGRES_HOST', config_value: 'localhost' }
+  - { config_option: 'POSTGRES_USER', config_value: 'tandoor' }
+  - { config_option: 'POSTGRES_PASSWORD', config_value: '{{ database_password }}' }
+  - { config_option: 'POSTGRES_DB', config_value: 'tandoor' }
