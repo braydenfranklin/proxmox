@@ -1,0 +1,7 @@
+---
+- name: Install Vikunja on Debian 12 in Proxmox LXC 
+  hosts: vikunja
+  become: yes
+  vars_files: ../roles/vikunja/vars/database_password.yml
+  roles:
+    - vikunja
