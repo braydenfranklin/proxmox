@@ -1,0 +1,142 @@
+---
+# tasks file for tandoor
+- name: Check if .env file exists
+  ansible.builtin.stat:
+    path: /var/www/recipes/.env
+  register: env_file
+
+- name: Generate secret key
+  ansible.builtin.shell: base64 /dev/urandom | head -c50
+  register: secret_key_result
+  changed_when: false
+  when: not env_file.stat.exists
+
+- name: Set secret_key fact
+  set_fact:
+    secret_key: "{{ secret_key_result.stdout }}"
+  when: not env_file.stat.exists
+
+- name: Update and upgrade apt packages
+  ansible.builtin.apt:
+    update_cache: yes
+    upgrade: yes
+
+- name: Install necessary packages
+  ansible.builtin.apt:
+    name: "{{ packages }}"
+
+- name: Add the 'recipes' user
+  ansible.builtin.user:
+    name: recipes
+    state: present
+
+- name: Create and configure PostgreSQL database
+  become_user: postgres
+  become_method: su
+  ansible.builtin.postgresql_db:
+    name: tandoor
+
+- name: Create PostgreSQL user
+  become_user: postgres
+  become_method: su
+  ansible.builtin.postgresql_user:
+    db: tandoor
+    name: tandoor
+    password: "{{ database_password }}"
+    priv: ALL
+    role_attr_flags: SUPERUSER,CREATEDB
+
+- name: Clone Tandoor Recipes repository
+  ansible.builtin.git:
+    repo: 'https://github.com/vabene1111/recipes.git'
+    dest: '/var/www/recipes'
+    version: 'master'
+
+- name: Set up Python virtual environment
+  ansible.builtin.command: python3 -m venv /var/www/recipes
+  args:
+    creates: /var/www/recipes/bin/activate
+
+- name: Import Node.js v20.x GPG key
+  ansible.builtin.apt_key:
+    url: https://deb.nodesource.com/gpgkey/nodesource.gpg.key
+    state: present
+
+- name: Add Node.js v20.x repository
+  ansible.builtin.apt_repository:
+    repo: 'deb https://deb.nodesource.com/node_20.x {{ ansible_distribution_release }} main'
+    state: present
+    update_cache: yes
+
+- name: Install Node.js v20.x
+  ansible.builtin.apt:
+    name: nodejs
+
+- name: Install Yarn globally
+  ansible.builtin.npm:
+    name: yarn
+    global: yes
+
+- name: Install Python requirements
+  ansible.builtin.pip:
+    requirements: /var/www/recipes/requirements.txt
+    virtualenv: /var/www/recipes
+
+- name: Install dependencies & build Tandoor Recipes with yarn
+  ansible.builtin.shell: yarn install && yarn build
+  args:
+    chdir: /var/www/recipes/vue
+    executable: /bin/bash
+
+- name: Download Tandoor .env.template
+  ansible.builtin.get_url:
+    url: https://raw.githubusercontent.com/vabene1111/recipes/develop/.env.template
+    dest: /var/www/recipes/.env
+    mode: '0644'
+  when: not env_file.stat.exists
+
+- name: Configure Tandoor Recipes environment variables
+  ansible.builtin.lineinfile:
+    path: /var/www/recipes/.env
+    regexp: "^{{ item.config_option }}="
+    line: "{{ item.config_option }}={{ item.config_value }}"
+    state: present
+  loop: "{{ env_config }}"
+
+- name: Run Django migrations
+  ansible.builtin.django_manage:
+    command: migrate
+    app_path: /var/www/recipes
+    virtualenv: /var/www/recipes
+
+- name: Generate static files
+  ansible.builtin.shell: bin/python3 manage.py collectstatic --no-input && bin/python3 manage.py collectstatic_js_reverse
+  args:
+    chdir: /var/www/recipes
+    executable: /bin/bash
+
+- name: Set permissions of Tandoor Recipes directory
+  ansible.builtin.file:
+    path: /var/www/recipes
+    owner: recipes
+    group: www-data
+    recurse: yes
+
+- name: Upload gunicorn_recipes.service file
+  ansible.builtin.copy:
+    src: gunicorn_recipes.service
+    dest: /etc/systemd/system/
+
+- name: Upload Tandoor NGINX configuration file
+  ansible.builtin.copy:
+    src: recipes.conf
+    dest: /etc/nginx/conf.d/
+  notify: 
+  - Enable and start Gunicorn
+  - Restart NGINX
+
+- name: Remove NGINX default site
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: Restart NGINX
