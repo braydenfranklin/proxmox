@@ -1,0 +1,22 @@
+---
+# vars file for freshrss
+packages:
+  - vim
+  - git
+  - unzip
+  - mariadb-server
+  - python3-pymysql
+  - apache2
+  - libapache2-mod-php
+  - libapache2-mod-auth-openidc
+  - php 
+  - php-curl
+  - php-gmp
+  - php-intl
+  - php-mbstring 
+  - php-xml
+  - php-zip
+  - php-ctype
+  - php-dom 
+  - php-mysql 
+  - php-json
