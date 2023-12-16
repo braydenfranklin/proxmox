@@ -1,0 +1,72 @@
+---
+# tasks file for nextcloud
+- name: Update and upgrade apt packages
+  ansible.builtin.apt:
+    update_cache: yes
+    upgrade: yes
+
+- name: Install necessary packages
+  ansible.builtin.apt:
+    name: "{{ packages }}"
+  notify: Ensure MariaDB has started
+
+- name: Create Nextcloud database
+  community.mysql.mysql_db:
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+    name: nextcloud
+    state: present
+
+- name: Create MariaDB user for Nextcloud
+  community.mysql.mysql_user:
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+    name: nextcloud
+    password: "{{ database_password }}"
+    priv: 'nextcloud.*:ALL'
+    state: present
+
+- name: Download Nextcloud latest release tarball
+  ansible.builtin.get_url:
+    url: https://download.nextcloud.com/server/releases/latest.tar.bz2
+    dest: /tmp/latest.tar.bz2
+    mode: '0644'
+
+- name: Extract Nextcloud latest release tarball
+  ansible.builtin.unarchive:
+    src: /tmp/latest.tar.bz2
+    dest: /var/www/
+    remote_src: yes
+
+- name: Edit php.ini 
+  ansible.builtin.lineinfile:
+    path: /etc/php/8.2/apache2/php.ini
+    regexp: "^{{ item.config_option }} = "
+    line: "{{ item.config_option }} = {{ item.config_value }}"
+    state: present
+  loop: "{{ php_config }}"
+
+- name: Set permissions of Nextcloud and data mount directory
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    owner: www-data
+    group: www-data
+    recurse: "{{ item.recurse }}"
+  loop: "{{ nextcloud_permissions }}"
+
+- name: Enable Apache modules 
+  community.general.apache2_module:
+    name: "{{ item.module }}"
+    state: "{{ item.state }}"
+  loop: "{{ apache_modules }}"
+  notify: Restart Apache
+
+- name: Upload Nextcloud Apache configuration file
+  ansible.builtin.copy:
+    src: nextcloud.conf
+    dest: /etc/apache2/conf-enabled/
+
+- name: Remove Apache default site
+  ansible.builtin.file:
+    path: /etc/apache2/sites-enabled/000-default.conf
+    state: absent
+  notify: Restart Apache
+
