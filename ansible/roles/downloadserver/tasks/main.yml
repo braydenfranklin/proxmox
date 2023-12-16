@@ -1,0 +1,161 @@
+---
+# tasks file for downloadserver
+- name: Update and upgrade apt packages
+  ansible.builtin.apt:
+    update_cache: yes
+    upgrade: yes
+
+- name: Install prerequisite packages
+  ansible.builtin.apt:
+    name: "{{ prerequisite_packages }}"
+
+- name: Create groups
+  ansible.builtin.group:
+    name: "{{ item.name }}"
+    gid: "{{ item.gid }}"
+    state: present
+  loop: "{{ application_groups }}"
+
+- name: Create users
+  ansible.builtin.user:
+    name: "{{ item.name }}"
+    uid: "{{ item.uid }}"
+    groups: "{{ item.groups }}"
+    state: present
+    append: yes
+  loop: "{{ application_users }}"
+
+- name: Check if applications have been extracted
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop: "{{ extraction_paths }}"
+  register: extraction_checks
+
+- name: Download applications latest release
+  ansible.builtin.get_url:
+    url: "{{ item.url }}"
+    dest: "{{ item.dest }}"
+    mode: '0644'
+  loop: "{{ download_details }}"
+  when: not extraction_checks.results[item.index].stat.exists
+
+- name: Extract applications latest release
+  ansible.builtin.unarchive:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    remote_src: yes
+  loop: "{{ extraction_details }}"
+  when: not extraction_checks.results[item.index].stat.exists
+
+- name: Clone Jellyseerr repository
+  ansible.builtin.git:
+    repo: 'https://github.com/Fallenbagel/jellyseerr.git'
+    dest: /opt/jellyseerr
+    version: main
+    clone: yes
+    update: yes
+  when: not extraction_checks.results[3].stat.exists
+
+- name: Set permissions for application install folders
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    recurse: yes
+  loop: "{{ application_install }}"
+
+- name: Set permissions for application configuration folders
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    state: directory
+    recurse: yes
+  loop: "{{ application_configuration }}"
+
+- name: Import GPG keys for Sonarr, Mono & Node.js
+  block:
+  - name: Import GPG keys for Sonnar & Mono
+    ansible.builtin.apt_key:
+      keyserver: keyserver.ubuntu.com
+      id: "{{ item.id }}"
+      keyring: "{{ item.keyring }}"
+    loop: "{{ apt_keys }}"
+
+  - name: Import Node.js v18.x GPG key
+    ansible.builtin.apt_key:
+      url: https://deb.nodesource.com/gpgkey/nodesource.gpg.key
+      state: present
+
+- name: Import application repositories
+  ansible.builtin.apt_repository:
+    repo: "{{ item.repo }}"
+    filename: "{{ item.filename }}"
+    state: present
+    update_cache: yes
+  loop: "{{ apt_repositorys }}"
+
+- name: Download MediaArea repo
+  ansible.builtin.get_url:
+    url: https://mediaarea.net/repo/deb/repo-mediaarea_1.0-24_all.deb
+    dest: /tmp/repo-mediaarea_1.0-24_all.deb
+  register: mediainfo_deb_download
+
+- name: Install MediaArea repo
+  ansible.builtin.apt:
+    deb: /tmp/repo-mediaarea_1.0-24_all.deb
+  when: mediainfo_deb_download is changed
+
+- name: Enable non-free in sources list
+  ansible.builtin.lineinfile:
+    path: /etc/apt/sources.list
+    regexp: 'deb http://deb.debian.org/debian bookworm main contrib'
+    line: 'deb http://deb.debian.org/debian bookworm main contrib non-free'
+    state: present
+
+- name: Install application packages
+  ansible.builtin.apt:
+    name: "{{ application_packages }}"
+    update_cache: yes
+
+- name: Install Yarn globally
+  ansible.builtin.npm:
+    name: yarn
+    global: yes
+
+- name: Install dependencies and build Jellyseerr with yarn
+  ansible.builtin.shell:
+    cmd: 'CYPRESS_INSTALL_BINARY=0 yarn install --frozen-lockfile --network-timeout 1000000 && yarn run build'
+  args:
+    chdir: /opt/jellyseerr
+    executable: /bin/bash
+
+- name: Edit SABnzbd user
+  ansible.builtin.lineinfile:
+    path: /etc/default/sabnzbdplus
+    regexp: 'USER='
+    line: 'USER=dluser'
+    state: present
+
+- name: Set SABnzbdplus host and port
+  ansible.builtin.lineinfile:
+    path: /etc/default/sabnzbdplus
+    regexp: "^{{ item.config_option }}="
+    line: "{{ item.config_option }}={{ item.config_value }}"
+    state: present
+  loop: "{{ sabnzbdplus_config }}"
+
+- name: Upload systemd service and application configuration files
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: '0644'
+  loop: "{{ files }}"
+  notify:
+    - Reload systemd daemon
+    - Start or restart Prowlarr
+    - Start or restart Radarr
+    - Start or restart Readarr
+    - Start or restart Jellyseerr
+    - Start or restart qBittorrent-nox
+    - Start or restart sabnzbdplus
