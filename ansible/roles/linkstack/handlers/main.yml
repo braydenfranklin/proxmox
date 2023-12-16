@@ -1,0 +1,6 @@
+---
+# handlers file for linkstack
+- name: Restart Apache
+  ansible.builtin.systemd:
+    name: apache2
+    state: restarted
