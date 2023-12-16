@@ -1,0 +1,7 @@
+---
+- name: Install Nextcloud on Debian 12 in Proxmox LXC
+  hosts: nextcloud
+  become: yes
+  vars_files: ../roles/nextcloud/vars/database_password.yml
+  roles:
+    - nextcloud
