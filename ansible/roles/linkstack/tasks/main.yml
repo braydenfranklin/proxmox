@@ -1,0 +1,48 @@
+---
+# tasks file for linkstack
+- name: Update and upgrade apt packages
+  ansible.builtin.apt:
+    update_cache: yes
+    upgrade: yes
+
+- name: Install necessary packages
+  ansible.builtin.apt:
+    name: "{{ packages }}"
+
+- name: Download Linkstack latest release zip archive
+  ansible.builtin.get_url:
+    url: https://github.com/linkstackorg/linkstack/releases/latest/download/linkstack.zip
+    dest: /tmp/linkstack.zip
+    mode: '0644'
+
+- name: Extract Linkstack latest release zip archive
+  ansible.builtin.unarchive:
+    src:  /tmp/linkstack.zip
+    dest: /var/www/
+    remote_src: yes
+
+- name: Set permissions of Linkstack directory
+  ansible.builtin.file:
+    path: "/var/www/linkstack"
+    owner: www-data
+    group: www-data
+    recurse: yes
+
+- name: Enable Apache rewrite module 
+  community.general.apache2_module:
+    name: rewrite
+    state: present
+  notify: Restart Apache
+
+- name: Upload Linkstack Apache configuration file
+  ansible.builtin.copy:
+    src: linkstack.conf
+    dest: /etc/apache2/conf-enabled/
+  notify: Restart Apache
+
+- name: Remove Apache default site
+  ansible.builtin.file:
+    path: /etc/apache2/sites-enabled/000-default.conf
+    state: absent
+  notify: Restart Apache
+
