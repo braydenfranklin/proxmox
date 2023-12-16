@@ -1,0 +1,7 @@
+---
+- name: Install Bookstack on Debian 12 in Proxmox LXC
+  hosts: bookstack
+  become: yes
+  vars_files: ../roles/bookstack/vars/database_password.yml
+  roles:
+    - bookstack
