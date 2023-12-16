@@ -1,0 +1,40 @@
+---
+# vars file for nextcloud
+packages:
+  - vim
+  - apache2
+  - libapache2-mod-php
+  - php-cli
+  - php-fpm
+  - php-json
+  - php-intl
+  - php-imagick
+  - php-pdo  
+  - php-mysql
+  - php-zip
+  - php-gd
+  - php-mbstring
+  - php-curl
+  - php-xml
+  - php-pear
+  - php-bcmath
+  - mariadb-server
+  - python3-pymysql
+
+php_config:
+  - { config_option: ';date.timezone', config_value: 'Australia/Melbourne' }
+  - { config_option: 'memory_limit', config_value: '512M' }
+  - { config_option: 'upload_max_filesize', config_value: '500M' }
+  - { config_option: 'post_max_size', config_value: '500M' }
+  - { config_option: 'max_execution_time', config_value: '300' }
+
+nextcloud_permissions:
+  - { path: /var/www/nextcloud/, recurse: yes }
+  - { path: /mnt/data, recurse: no }
+
+apache_modules:
+  - { module: 'rewrite', state: 'present' }
+  - { module: 'dir', state: 'present' }
+  - { module: 'mime', state: 'present' }
+  - { module: 'env', state: 'present' }
+  - { module: 'headers', state: 'present' }
