@@ -1,0 +1,100 @@
+---
+# tasks file for bookstack
+- name: Update and upgrade apt packages
+  ansible.builtin.apt:
+    update_cache: yes
+    upgrade: yes
+
+- name: Install necessary packages
+  ansible.builtin.apt:
+    name: "{{ packages }}"
+  notify: Ensure MariaDB has started
+
+- name: Create Bookstack user and add to www-data group
+  ansible.builtin.user:
+    name: bookstack
+    uid: 1000
+    groups: www-data
+    append: yes
+
+- name: Create Bookstack database
+  community.mysql.mysql_db:
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+    name: bookstack
+    state: present
+
+- name: Create MariaDB user for Bookstack
+  community.mysql.mysql_user:
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+    name: bookstack
+    password: "{{ database_password }}"
+    priv: 'bookstack.*:ALL'
+    state: present
+
+- name: Clone BookStack repository
+  ansible.builtin.git:
+    repo: 'https://github.com/BookStackApp/BookStack.git'
+    dest: '/var/www/bookstack'
+    version: 'release'
+
+- name: Copy .env file for BookStack
+  ansible.builtin.copy:
+    src: '/var/www/bookstack/.env.example'
+    dest: '/var/www/bookstack/.env'
+    owner: bookstack
+    group: www-data
+    remote_src: true
+
+- name: Configure Bookstack environment variables
+  ansible.builtin.lineinfile:
+    path: /var/www/bookstack/.env
+    regexp: "^{{ item.config_option }}="
+    line: "{{ item.config_option }}={{ item.config_value }}"
+    state: present
+  loop: "{{ env_config }}"
+
+- name: Set permissions for BookStack user to run Composer
+  ansible.builtin.file:
+    path: "/var/www/bookstack"
+    owner: bookstack
+    group: www-data
+    mode: '0755'
+    recurse: yes
+
+- name: Install dependencies using Composer
+  become_user: bookstack
+  become_method: su
+  ansible.builtin.shell: composer update && composer install --no-dev
+  args:
+    chdir: '/var/www/bookstack'
+
+- name: Generate the application key
+  ansible.builtin.shell: php artisan key:generate --no-interaction --force && php artisan migrate --no-interaction --force
+  args:
+    chdir: '/var/www/bookstack'
+
+- name: Set permissions of BookStack directory
+  ansible.builtin.file:
+    path: "/var/www/bookstack"
+    owner: www-data
+    group: www-data
+    mode: '0755'
+    recurse: yes
+
+- name: Enable Apache rewrite module 
+  community.general.apache2_module:
+    name: rewrite
+    state: present
+  notify: Restart Apache
+
+- name: Upload Bookstack Apache configuration file
+  ansible.builtin.copy:
+    src: bookstack.conf
+    dest: /etc/apache2/conf-enabled/
+  notify: Restart Apache
+
+- name: Remove Apache default site
+  ansible.builtin.file:
+    path: /etc/apache2/sites-enabled/000-default.conf
+    state: absent
+  notify: Restart Apache
