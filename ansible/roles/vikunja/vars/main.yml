@@ -1,0 +1,12 @@
+---
+# vars file for vikunja
+packages:
+  - vim
+  - apache2
+  - mariadb-server
+  - unzip
+  - python3-pymysql
+
+vikunja_config:
+  - { config_option: 'language', config_value: 'en'}
+  - { config_option: 'timezone', config_value: 'Australia/Melbourne' }
