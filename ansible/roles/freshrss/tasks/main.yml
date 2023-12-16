@@ -1,0 +1,88 @@
+---
+# tasks file for freshrss
+- name: Update and upgrade apt packages
+  ansible.builtin.apt:
+    update_cache: yes
+    upgrade: yes
+
+- name: Install necessary packages
+  ansible.builtin.apt:
+    name: "{{ packages }}"
+  notify: Ensure MariaDB has started
+
+- name: Create FreshRSS database
+  community.mysql.mysql_db:
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+    name: freshrss
+    state: present
+
+- name: Create MariaDB user for FreshRSS
+  community.mysql.mysql_user:
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+    name: freshrss
+    password: "{{ database_password }}"
+    priv: 'freshrss.*:ALL'
+    state: present
+  
+- name: Clone FreshRSS repository
+  ansible.builtin.git:
+    repo: 'https://github.com/FreshRSS/FreshRSS.git'
+    dest: '/var/www/freshrss'
+    version: 'latest'
+
+- name: Set permissions of FreshRSS directory
+  ansible.builtin.file:
+    path: /var/www/freshrss/
+    owner: www-data
+    group: www-data
+    state: directory
+    mode: g+rX,g+w
+    recurse: yes
+
+- name: Enable Apache headers module 
+  community.general.apache2_module:
+    name: headers
+    state: present
+  notify: Restart Apache
+
+- name: Enable Apache expires module 
+  community.general.apache2_module:
+    name: expires
+    state: present
+  notify: Restart Apache
+
+- name: Enable Apache rewrite module 
+  community.general.apache2_module:
+    name: rewrite
+    state: present
+  notify: Restart Apache
+
+- name: Enable Apache ssl module 
+  community.general.apache2_module:
+    name: ssl
+    state: present
+  notify: Restart Apache
+
+- name: Set server token and trace enable in apache2.conf
+  ansible.builtin.blockinfile:
+    path: /etc/apache2/apache2.conf
+    marker: "# {mark} ANSIBLE MANAGED BLOCK"
+    insertafter: "#Mutex file:${APACHE_LOCK_DIR} default"
+    block: |
+      ServerTokens Prod
+      TraceEnable Off
+  notify:
+  - Restart Apache
+
+- name: Upload FreshRSS Apache configuration file
+  copy:
+    src: freshrss.conf
+    dest: /etc/apache2/conf-enabled/
+  notify:
+  - Restart Apache
+
+- name: Remove Apache default site
+  ansible.builtin.file:
+    path: /etc/apache2/sites-enabled/000-default.conf
+    state: absent
+  notify: Restart Apache
