@@ -1,0 +1,7 @@
+---
+- name: Install FreshRSS on Debian 12 in Proxmox LXC
+  hosts: freshrss
+  become: yes
+  vars_files: ../roles/freshrss/vars/database_password.yml
+  roles:
+    - freshrss
