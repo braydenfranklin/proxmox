@@ -1,0 +1,6 @@
+---
+- name: Set up a download server on Debian 12 in Proxmox LXC
+  hosts: downloadserver
+  become: yes
+  roles:
+    - downloadserver
