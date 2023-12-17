@@ -1,0 +1,6 @@
+---
+- name: Set up a media server on Debian 12 in Proxmox LXC 
+  hosts: mediaserver
+  become: yes
+  roles:
+    - mediaserver
