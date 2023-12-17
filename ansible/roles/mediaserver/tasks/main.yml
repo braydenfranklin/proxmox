@@ -1,0 +1,29 @@
+---
+# tasks file for mediaserver
+- name: Update and upgrade apt packages
+  ansible.builtin.apt:
+    update_cache: yes
+    upgrade: yes
+
+- name: Install prerequisite packages
+  ansible.builtin.apt:
+    name: "{{ prerequisite_packages }}"
+
+- name: Import Jellyfin GPG key
+  ansible.builtin.apt_key:
+    url: https://repo.jellyfin.org/jellyfin_team.gpg.key
+    keyring: /etc/apt/keyrings/jellyfin.gpg
+
+- name: Upload Jellyfin repository configuration
+  ansible.builtin.copy:
+    src: jellyfin.sources
+    dest: /etc/apt/sources.list.d/
+    mode: '0644'
+
+- name: Update apt packages
+  ansible.builtin.apt:
+    update_cache: yes
+
+- name: Install application package
+  ansible.builtin.apt:
+    name: jellyfin
